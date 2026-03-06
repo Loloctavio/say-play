@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from app.models.repositories.playlists_repo import PlaylistsRepo
 from app.models.repositories.users_repo import UsersRepo
+from app.models.repositories.prompts_repo import PromptsRepo
 from app.services.playlist_generation_service import PlaylistGenerationService
 from app.services.spotify_playlist_service import SpotifyPlaylistService
 
@@ -11,11 +12,20 @@ class PlaylistsController:
     def __init__(self):
         self.playlists_repo = PlaylistsRepo()
         self.users_repo = UsersRepo()
+        self.prompts_repo = PromptsRepo()
         self.generator = PlaylistGenerationService()
         self.spotify_playlist_service = SpotifyPlaylistService()
 
-    async def generate_only(self, *, prompt: str, min_songs: int, max_songs: int):
+    async def generate_only(self, *, user_id: str, prompt: str, min_songs: int, max_songs: int):
         songs = await self.generator.generate(prompt, min_songs=min_songs, max_songs=max_songs)
+
+        await self.prompts_repo.create_generation_log(
+            user_id=user_id,
+            prompt=prompt,
+            min_songs=min_songs,
+            max_songs=max_songs,
+            response_songs=songs,
+        )
 
         return {
             "name_suggestion": "AI Playlist",

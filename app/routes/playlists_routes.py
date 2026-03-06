@@ -36,6 +36,7 @@ async def generate_playlist(
     current_user=Depends(get_current_user),
 ):
     draft = await controller.generate_only(
+        user_id=current_user["id"],
         prompt=payload.prompt,
         min_songs=payload.min_songs,
         max_songs=payload.max_songs,
