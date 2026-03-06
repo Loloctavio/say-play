@@ -9,12 +9,12 @@ from fastapi.responses import RedirectResponse
 from app.controllers.spotify_controller import SpotifyController
 from app.services.dependencies import get_current_user
 
-router = APIRouter(prefix="/spotify", tags=["spotify"])
+router = APIRouter(tags=["spotify"])
 controller = SpotifyController()
 
 
 def _frontend_profile_url() -> str:
-    frontend_base = os.getenv("FRONTEND_URL")
+    frontend_base = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
     return f"{frontend_base}/profile"
 
 
@@ -26,7 +26,7 @@ def _with_status(url: str, *, status_value: str, message: str | None = None) -> 
     return f"{url}{sep}{urlencode(params)}"
 
 
-@router.get("/connect")
+@router.get("/spotify/connect")
 async def spotify_connect(
     redirect_to: str | None = Query(default=None),
     as_redirect: bool = Query(default=False),
@@ -43,8 +43,7 @@ async def spotify_connect(
     return payload
 
 
-@router.get("/callback")
-async def spotify_callback(
+async def _handle_spotify_callback(
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
@@ -68,3 +67,21 @@ async def spotify_callback(
             target = f"{frontend_base}{redirect_to}"
 
     return RedirectResponse(_with_status(target, status_value="connected"), status_code=307)
+
+
+@router.get("/spotify/callback")
+async def spotify_callback(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+):
+    return await _handle_spotify_callback(code=code, state=state, error=error)
+
+
+@router.get("/callback")
+async def spotify_callback_legacy(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+):
+    return await _handle_spotify_callback(code=code, state=state, error=error)
