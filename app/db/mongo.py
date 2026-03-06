@@ -43,6 +43,7 @@ def get_collections() -> Dict[str, object]:
     return {
         "users": db["users"],
         "playlists": db["playlists"],
+        "prompts": db["prompts"],
     }
 
 

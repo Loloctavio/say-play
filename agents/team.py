@@ -40,7 +40,8 @@ def merge_agent_recs(agent_outputs: Dict[str, Any]) -> List[dict]:
 
 def select_final_list(merged_tracks: List[dict], min_n: int = 35, max_n: int = 50) -> List[dict]:
     """
-    Selecciona una lista final única (35–50):
+    Selecciona una lista final única:
+    - En caso de que no haya especificacion para la cantidad de canciones que sean de 25-35
     - Prioriza tracks con más consenso (ya vienen ordenadas).
     - Recorta a max_n.
     - Si por alguna razón hay menos de min_n, devuelve lo que exista.

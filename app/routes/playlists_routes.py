@@ -6,11 +6,14 @@ from app.models.playlist_schemas import (
     PlaylistSaveRequest,
     PlaylistUpdate,
     PlaylistOut,
+    SpotifyExportOut,
+    SpotifyExportRequest,
 )
 from app.services.dependencies import get_current_user
 
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 controller = PlaylistsController()
+
 
 def _serialize_playlist(doc: dict) -> dict:
     return {
@@ -26,17 +29,20 @@ def _serialize_playlist(doc: dict) -> dict:
         "updated_at": doc["updated_at"],
     }
 
+
 @router.post("/generate", response_model=PlaylistDraftOut)
 async def generate_playlist(
     payload: PlaylistGenerateRequest,
     current_user=Depends(get_current_user),
 ):
     draft = await controller.generate_only(
+        user_id=current_user["id"],
         prompt=payload.prompt,
         min_songs=payload.min_songs,
         max_songs=payload.max_songs,
     )
     return draft
+
 
 @router.post("", response_model=PlaylistOut)
 async def save_playlist(
@@ -54,6 +60,7 @@ async def save_playlist(
     )
     return _serialize_playlist(doc)
 
+
 @router.get("", response_model=list[PlaylistOut])
 async def list_my_playlists(
     current_user=Depends(get_current_user),
@@ -62,6 +69,7 @@ async def list_my_playlists(
 ):
     docs = await controller.list_by_user(current_user["id"], limit=limit, skip=skip)
     return [_serialize_playlist(d) for d in docs]
+
 
 @router.get("/{playlist_id}", response_model=PlaylistOut)
 async def get_playlist(
@@ -77,6 +85,7 @@ async def get_playlist(
 
     return _serialize_playlist(doc)
 
+
 @router.put("/{playlist_id}", response_model=PlaylistOut)
 async def update_playlist(
     playlist_id: str,
@@ -91,6 +100,20 @@ async def update_playlist(
 
     updated = await controller.update(playlist_id=playlist_id, payload=payload)
     return _serialize_playlist(updated)
+
+
+@router.post("/{playlist_id}/spotify", response_model=SpotifyExportOut)
+async def export_playlist_to_spotify(
+    playlist_id: str,
+    payload: SpotifyExportRequest,
+    current_user=Depends(get_current_user),
+):
+    return await controller.export_to_spotify(
+        user_id=current_user["id"],
+        playlist_id=playlist_id,
+        public=payload.public,
+    )
+
 
 @router.delete("/{playlist_id}")
 async def delete_playlist(

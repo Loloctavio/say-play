@@ -5,6 +5,7 @@ from app.db.mongo import get_collections
 cols = get_collections()
 users_col = cols["users"]
 
+
 class UsersRepo:
     async def create(self, *, username: str, gmail: str, hashed_password: str, profile_photo: str | None):
         now = datetime.utcnow()
@@ -18,6 +19,7 @@ class UsersRepo:
             "password": hashed_password,
             "profile_photo": profile_photo,
             "playlists": [],
+            "spotify_connected": False,
             "created_at": now,
             "updated_at": now,
         }
@@ -30,6 +32,9 @@ class UsersRepo:
 
     async def find_by_gmail(self, gmail: str):
         return await users_col.find_one({"gmail": gmail})
+
+    async def find_by_spotify_oauth_state(self, state: str):
+        return await users_col.find_one({"spotify_oauth_state": state})
 
     async def update(self, user_id: str, updates: dict):
         updates["updated_at"] = datetime.utcnow()
