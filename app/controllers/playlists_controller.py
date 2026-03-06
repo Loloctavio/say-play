@@ -1,11 +1,18 @@
 from bson import ObjectId
+from fastapi import HTTPException
+
 from app.models.repositories.playlists_repo import PlaylistsRepo
+from app.models.repositories.users_repo import UsersRepo
 from app.services.playlist_generation_service import PlaylistGenerationService
+from app.services.spotify_playlist_service import SpotifyPlaylistService
+
 
 class PlaylistsController:
     def __init__(self):
         self.playlists_repo = PlaylistsRepo()
+        self.users_repo = UsersRepo()
         self.generator = PlaylistGenerationService()
+        self.spotify_playlist_service = SpotifyPlaylistService()
 
     async def generate_only(self, *, prompt: str, min_songs: int, max_songs: int):
         songs = await self.generator.generate(prompt, min_songs=min_songs, max_songs=max_songs)
@@ -66,3 +73,21 @@ class PlaylistsController:
 
     async def delete(self, playlist_id: str):
         return await self.playlists_repo.delete(playlist_id)
+
+    async def export_to_spotify(self, *, user_id: str, playlist_id: str, public: bool = False):
+        playlist_doc = await self.playlists_repo.get(playlist_id)
+        if not playlist_doc:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+
+        if str(playlist_doc["user_id"]) != user_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        user_doc = await self.users_repo.get(user_id)
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return await self.spotify_playlist_service.export_playlist(
+            user_doc=user_doc,
+            playlist_doc=playlist_doc,
+            public=public,
+        )
