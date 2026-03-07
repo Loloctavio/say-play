@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from bson import ObjectId
+
 from app.db.mongo import get_collections
 
 cols = get_collections()
@@ -39,6 +41,24 @@ class UsersRepo:
     async def update(self, user_id: str, updates: dict):
         updates["updated_at"] = datetime.utcnow()
         await users_col.update_one({"_id": ObjectId(user_id)}, {"$set": updates})
+        return await self.get(user_id)
+
+    async def disconnect_spotify(self, user_id: str):
+        await users_col.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "spotify_connected": False,
+                    "updated_at": datetime.utcnow(),
+                },
+                "$unset": {
+                    "spotify": "",
+                    "spotify_oauth_state": "",
+                    "spotify_oauth_state_expires_at": "",
+                    "spotify_oauth_redirect_to": "",
+                },
+            },
+        )
         return await self.get(user_id)
 
     async def delete(self, user_id: str) -> bool:

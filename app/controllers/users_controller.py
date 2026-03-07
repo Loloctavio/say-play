@@ -1,10 +1,16 @@
 from fastapi import HTTPException
+
+from app.models.repositories.playlists_repo import PlaylistsRepo
+from app.models.repositories.prompts_repo import PromptsRepo
 from app.models.repositories.users_repo import UsersRepo
-from app.services.auth_service import hash_password, verify_password, create_access_token
+from app.services.auth_service import create_access_token, hash_password, verify_password
+
 
 class UsersController:
     def __init__(self):
         self.repo = UsersRepo()
+        self.playlists_repo = PlaylistsRepo()
+        self.prompts_repo = PromptsRepo()
 
     async def register(self, payload):
         hashed = hash_password(payload.password)
@@ -59,7 +65,12 @@ class UsersController:
         return {"changed": True}
 
     async def delete_me(self, current_user: dict):
-        ok = await self.repo.delete(current_user["id"])
+        user_id = current_user["id"]
+
+        await self.playlists_repo.delete_by_user(user_id)
+        await self.prompts_repo.delete_by_user(user_id)
+
+        ok = await self.repo.delete(user_id)
         if not ok:
             raise HTTPException(status_code=404, detail="User not found")
         return {"deleted": True}

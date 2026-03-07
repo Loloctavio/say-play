@@ -1,9 +1,12 @@
 from datetime import datetime
+
 from bson import ObjectId
+
 from app.db.mongo import get_collections
 
 cols = get_collections()
 playlists_col = cols["playlists"]
+
 
 class PlaylistsRepo:
     async def create(
@@ -36,12 +39,7 @@ class PlaylistsRepo:
         return await playlists_col.find_one({"_id": ObjectId(playlist_id)})
 
     async def list_by_user(self, user_id: str, limit: int = 50, skip: int = 0):
-        cursor = (
-            playlists_col.find({"user_id": ObjectId(user_id)})
-            .sort("created_at", -1)
-            .skip(skip)
-            .limit(limit)
-        )
+        cursor = playlists_col.find({"user_id": ObjectId(user_id)}).sort("created_at", -1).skip(skip).limit(limit)
         return await cursor.to_list(length=limit)
 
     async def update(self, playlist_id: str, updates: dict):
@@ -52,3 +50,7 @@ class PlaylistsRepo:
     async def delete(self, playlist_id: str):
         res = await playlists_col.delete_one({"_id": ObjectId(playlist_id)})
         return res.deleted_count > 0
+
+    async def delete_by_user(self, user_id: str) -> int:
+        res = await playlists_col.delete_many({"user_id": ObjectId(user_id)})
+        return int(res.deleted_count)
