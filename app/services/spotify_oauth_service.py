@@ -17,13 +17,10 @@ SPOTIFY_API_BASE = "https://api.spotify.com/v1"
 
 class SpotifyOAuthService:
     def __init__(self) -> None:
-        self.client_id = os.getenv("SPOTIFY_CLIENT_ID", "")
-        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", "")
-        self.redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI") or os.getenv("SPOTIPY_REDIRECT_URI", "")
-        self.scopes = os.getenv(
-            "SPOTIFY_SCOPES",
-            "playlist-modify-public playlist-modify-private",
-        )
+        self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        self.redirect_uri = os.getenv("SPOTIPY_REDIRECT_URI")
+        self.scopes = os.getenv("SPOTIFY_SCOPES")
 
         if not self.client_id or not self.client_secret or not self.redirect_uri:
             raise HTTPException(
