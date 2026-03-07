@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 import aiohttp
 from fastapi import HTTPException, status
 
+from app.services.spotify_http import spotify_request_json
+
 SPOTIFY_ACCOUNTS_BASE = "https://accounts.spotify.com"
 SPOTIFY_API_BASE = "https://api.spotify.com/v1"
 
@@ -65,32 +67,24 @@ class SpotifyOAuthService:
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{SPOTIFY_ACCOUNTS_BASE}/api/token",
-                data=body,
+            return await spotify_request_json(
+                session,
+                method="POST",
+                url=f"{SPOTIFY_ACCOUNTS_BASE}/api/token",
                 headers=headers,
+                data=body,
                 timeout=20,
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Spotify token exchange failed: {data}",
-                    )
-                return data
+                context="Spotify token exchange",
+            )
 
     async def get_profile(self, *, access_token: str) -> dict:
         headers = {"Authorization": f"Bearer {access_token}"}
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{SPOTIFY_API_BASE}/me",
+            return await spotify_request_json(
+                session,
+                method="GET",
+                url=f"{SPOTIFY_API_BASE}/me",
                 headers=headers,
                 timeout=20,
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Spotify profile fetch failed: {data}",
-                    )
-                return data
+                context="Spotify profile fetch",
+            )

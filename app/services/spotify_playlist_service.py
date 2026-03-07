@@ -9,6 +9,7 @@ import aiohttp
 from fastapi import HTTPException, status
 
 from app.models.repositories.users_repo import UsersRepo
+from app.services.spotify_http import spotify_request_json
 
 
 class SpotifyPlaylistService:
@@ -48,19 +49,15 @@ class SpotifyPlaylistService:
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                "https://accounts.spotify.com/api/token",
-                data=body,
+            return await spotify_request_json(
+                session,
+                method="POST",
+                url="https://accounts.spotify.com/api/token",
                 headers=headers,
+                data=body,
                 timeout=20,
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Spotify refresh failed: {data}",
-                    )
-                return data
+                context="Spotify refresh",
+            )
 
     async def _get_valid_access_token(self, user_doc: dict) -> str:
         spotify = user_doc.get("spotify") or {}
@@ -115,19 +112,15 @@ class SpotifyPlaylistService:
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"https://api.spotify.com/v1/users/{spotify_user_id}/playlists",
+            return await spotify_request_json(
+                session,
+                method="POST",
+                url=f"https://api.spotify.com/v1/users/{spotify_user_id}/playlists",
                 headers=headers,
                 json=payload,
                 timeout=20,
-            ) as response:
-                data = await response.json(content_type=None)
-                if response.status >= 400:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Spotify create playlist failed: {data}",
-                    )
-                return data
+                context="Spotify create playlist",
+            )
 
     async def _add_tracks(self, *, access_token: str, playlist_id: str, uris: List[str]) -> None:
         headers = {
@@ -138,18 +131,15 @@ class SpotifyPlaylistService:
         async with aiohttp.ClientSession() as session:
             for i in range(0, len(uris), 100):
                 chunk = uris[i : i + 100]
-                async with session.post(
-                    f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks",
+                await spotify_request_json(
+                    session,
+                    method="POST",
+                    url=f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks",
                     headers=headers,
                     json={"uris": chunk},
                     timeout=20,
-                ) as response:
-                    data = await response.json(content_type=None)
-                    if response.status >= 400:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Spotify add tracks failed: {data}",
-                        )
+                    context="Spotify add tracks",
+                )
 
     async def export_playlist(self, *, user_doc: dict, playlist_doc: dict, public: bool = False) -> Dict[str, Any]:
         if not user_doc.get("spotify_connected"):

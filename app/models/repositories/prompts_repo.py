@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 
 from bson import ObjectId
 
@@ -8,6 +9,7 @@ from app.db.mongo import get_collections
 
 cols = get_collections()
 prompts_col = cols["prompts"]
+PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS", "30")))
 
 
 class PromptsRepo:
@@ -21,6 +23,8 @@ class PromptsRepo:
         response_songs: list[dict],
     ) -> dict:
         now = datetime.utcnow()
+        expires_at = now + timedelta(days=PROMPTS_LOG_TTL_DAYS)
+
         doc = {
             "user_id": ObjectId(user_id),
             "prompt": prompt,
@@ -34,7 +38,12 @@ class PromptsRepo:
             },
             "created_at": now,
             "updated_at": now,
+            "expires_at": expires_at,
         }
         res = await prompts_col.insert_one(doc)
         doc["_id"] = res.inserted_id
         return doc
+
+    async def delete_by_user(self, user_id: str) -> int:
+        res = await prompts_col.delete_many({"user_id": ObjectId(user_id)})
+        return int(res.deleted_count)

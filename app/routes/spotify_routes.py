@@ -43,6 +43,11 @@ async def spotify_connect(
     return payload
 
 
+@router.delete("/spotify/disconnect")
+async def spotify_disconnect(current_user=Depends(get_current_user)):
+    return await controller.disconnect(user_id=current_user["id"])
+
+
 async def _handle_spotify_callback(
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
@@ -60,9 +65,7 @@ async def _handle_spotify_callback(
 
     redirect_to = result.get("redirect_to")
     if isinstance(redirect_to, str) and redirect_to.strip():
-        if redirect_to.startswith("http://") or redirect_to.startswith("https://"):
-            target = redirect_to
-        elif redirect_to.startswith("/"):
+        if redirect_to.startswith("/"):
             frontend_base = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
             target = f"{frontend_base}{redirect_to}"
 

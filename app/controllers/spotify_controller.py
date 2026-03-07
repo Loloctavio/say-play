@@ -83,3 +83,11 @@ class SpotifyController:
             "spotify_user_id": spotify_user_id,
             "redirect_to": user.get("spotify_oauth_redirect_to"),
         }
+
+    async def disconnect(self, *, user_id: str) -> dict:
+        user = await self.repo.get(user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        await self.repo.disconnect_spotify(user_id)
+        return {"disconnected": True}

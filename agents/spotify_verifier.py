@@ -1,21 +1,17 @@
-# agents/spotify_verify.py
 import base64
 import os
 import re
-import unicodedata
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Tuple
 import time
-from requests.exceptions import ReadTimeout, ConnectionError
+import unicodedata
+from typing import Any, Dict, List, Optional
 
 import requests
+from requests.exceptions import ConnectionError, ReadTimeout
 
 
 def _strip_accents(s: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFKD", s)
-        if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+
 
 def _normalize(s: str) -> str:
     if not s:
@@ -29,12 +25,14 @@ def _normalize(s: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
+
 def _token_overlap_score(a: str, b: str) -> float:
     ta = set(_normalize(a).split())
     tb = set(_normalize(b).split())
     if not ta or not tb:
         return 0.0
     return len(ta & tb) / len(ta | tb)
+
 
 def _score_match(input_track: str, input_artist: str, cand_track: str, cand_artist: str) -> float:
     name_score = _token_overlap_score(input_track, cand_track)
@@ -44,11 +42,12 @@ def _score_match(input_track: str, input_artist: str, cand_track: str, cand_arti
 
 class SpotifyVerifier:
     """
-    Verifica tracks con Spotify (Client Credentials).
-    Requiere env vars:
+    Verify tracks with Spotify using Client Credentials.
+    Requires:
       - SPOTIFY_CLIENT_ID
       - SPOTIFY_CLIENT_SECRET
     """
+
     def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None, timeout: int = 60):
         self.client_id = client_id or os.getenv("SPOTIFY_CLIENT_ID", "")
         self.client_secret = client_secret or os.getenv("SPOTIFY_CLIENT_SECRET", "")
@@ -62,14 +61,14 @@ class SpotifyVerifier:
             return self._token
 
         auth = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
-        r = requests.post(
+        response = requests.post(
             "https://accounts.spotify.com/api/token",
             headers={"Authorization": f"Basic {auth}"},
             data={"grant_type": "client_credentials"},
             timeout=self.timeout,
         )
-        r.raise_for_status()
-        self._token = r.json()["access_token"]
+        response.raise_for_status()
+        self._token = response.json()["access_token"]
         return self._token
 
     def _headers(self) -> Dict[str, str]:
@@ -80,19 +79,34 @@ class SpotifyVerifier:
         if artist:
             q += f' artist:"{artist}"'
 
-        last_err = None
-        for attempt in range(1, 4):
+        for attempt in range(1, 5):
             try:
-                r = requests.get(
+                response = requests.get(
                     "https://api.spotify.com/v1/search",
                     headers=self._headers(),
                     params={"q": q, "type": "track", "limit": str(limit)},
                     timeout=self.timeout,
                 )
-                r.raise_for_status()
-                return r.json().get("tracks", {}).get("items", [])
-            except (ReadTimeout, ConnectionError) as e:
-                last_err = e
+
+                # Refresh token once if token expired/invalid.
+                if response.status_code == 401 and attempt == 1:
+                    self._token = None
+                    continue
+
+                # Respect Spotify rate-limits.
+                if response.status_code == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    wait_s = float(retry_after) if retry_after and retry_after.isdigit() else 0.8 * (2 ** (attempt - 1))
+                    time.sleep(max(0.5, min(wait_s, 10.0)))
+                    continue
+
+                if response.status_code >= 500:
+                    time.sleep(0.8 * (2 ** (attempt - 1)))
+                    continue
+
+                response.raise_for_status()
+                return response.json().get("tracks", {}).get("items", [])
+            except (ReadTimeout, ConnectionError):
                 time.sleep(0.8 * (2 ** (attempt - 1)))
 
         return []
@@ -107,15 +121,15 @@ class SpotifyVerifier:
             return {"status": "not_found", "confidence": 0.0}
 
         best_sc, best = 0.0, items[0]
-        for it in items:
-            it_name = it.get("name", "")
-            it_artist = (it.get("artists") or [{}])[0].get("name", "")
-            sc = _score_match(track, artist, it_name, it_artist)
-            if sc > best_sc:
-                best_sc, best = sc, it
+        for item in items:
+            item_name = item.get("name", "")
+            item_artist = (item.get("artists") or [{}])[0].get("name", "")
+            score = _score_match(track, artist, item_name, item_artist)
+            if score > best_sc:
+                best_sc, best = score, item
 
         confidence = float(best_sc)
-        status = "verified" if confidence >= 0.72 else ("maybe" if confidence >= 0.45 else "maybe")
+        status = "verified" if confidence >= 0.72 else "maybe"
 
         return {
             "status": status,
@@ -128,19 +142,15 @@ class SpotifyVerifier:
         }
 
     def verify_list(self, tracks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Recibe tu estructura actual:
-          {"artist": "...", "track": "...", "reason": "...", "genres": [], "suggested_by": [...]}
-        y agrega:
-          verified: {status, confidence, spotify_url, ...}
-        """
         out = []
-        for t in tracks:
+        for track in tracks:
             try:
-                v = self.verify_track(track=t["track"], artist=t["artist"])
-            except Exception as e:
-                v = {"status": "error", "confidence": 0.0, "error": str(e)}
-            t2 = dict(t)
-            t2["verified"] = v
-            out.append(t2)
+                verified = self.verify_track(track=track["track"], artist=track["artist"])
+            except Exception as exc:
+                verified = {"status": "error", "confidence": 0.0, "error": str(exc)}
+
+            enriched = dict(track)
+            enriched["verified"] = verified
+            out.append(enriched)
+
         return out

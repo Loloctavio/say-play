@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import os
 from typing import Dict
-from dotenv import load_dotenv
+
 import certifi
+from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB", "ai-playlist")
+PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS", "30")))
 
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI is not set in .env")
@@ -45,6 +47,26 @@ def get_collections() -> Dict[str, object]:
         "playlists": db["playlists"],
         "prompts": db["prompts"],
     }
+
+
+async def ensure_indexes() -> None:
+    db = get_db()
+
+    # Best-effort index creation to avoid startup regressions in existing deployments.
+    try:
+        await db["users"].create_index("gmail")
+        await db["users"].create_index("spotify_oauth_state")
+        await db["playlists"].create_index([("user_id", 1), ("created_at", -1)])
+        await db["prompts"].create_index([("user_id", 1), ("created_at", -1)])
+
+        # TTL for generation logs so prompt+response history is not kept forever.
+        await db["prompts"].create_index(
+            "expires_at",
+            expireAfterSeconds=0,
+            name=f"prompts_ttl_{PROMPTS_LOG_TTL_DAYS}d",
+        )
+    except Exception:
+        return
 
 
 async def ping() -> bool:
