@@ -10,8 +10,8 @@ from app.routes.user_routes import router as users_router
 
 app = FastAPI(title="AI Playlist API", version="0.1.0")
 
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
-extra_origins = [x.strip() for x in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if x.strip()]
+frontend_url = os.getenv("FRONTEND_URL").rstrip("/")
+extra_origins = [x.strip() for x in os.getenv("CORS_ALLOW_ORIGINS").split(",") if x.strip()]
 allow_origins = [frontend_url, *extra_origins]
 
 app.add_middleware(

@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRES_MIN", "1440"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRES_MIN"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

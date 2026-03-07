@@ -14,7 +14,7 @@ controller = SpotifyController()
 
 
 def _frontend_profile_url() -> str:
-    frontend_base = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    frontend_base = os.getenv("FRONTEND_URL")
     return f"{frontend_base}/profile"
 
 
@@ -66,7 +66,7 @@ async def _handle_spotify_callback(
     redirect_to = result.get("redirect_to")
     if isinstance(redirect_to, str) and redirect_to.strip():
         if redirect_to.startswith("/"):
-            frontend_base = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+            frontend_base = os.getenv("FRONTEND_URL").rstrip("/")
             target = f"{frontend_base}{redirect_to}"
 
     return RedirectResponse(_with_status(target, status_value="connected"), status_code=307)

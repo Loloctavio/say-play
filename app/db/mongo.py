@@ -10,8 +10,8 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
-MONGO_DB = os.getenv("MONGO_DB", "ai-playlist")
-PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS", "30")))
+MONGO_DB = os.getenv("MONGO_DB")
+PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS")))
 
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI is not set in .env")

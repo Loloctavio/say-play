@@ -14,8 +14,8 @@ from app.services.spotify_http import spotify_request_json
 
 class SpotifyPlaylistService:
     def __init__(self) -> None:
-        self.client_id = os.getenv("SPOTIFY_CLIENT_ID", "")
-        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+        self.client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        self.client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
         if not self.client_id or not self.client_secret:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Missing Spotify client env vars")
 

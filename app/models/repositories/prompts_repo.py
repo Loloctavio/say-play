@@ -9,7 +9,7 @@ from app.db.mongo import get_collections
 
 cols = get_collections()
 prompts_col = cols["prompts"]
-PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS", "30")))
+PROMPTS_LOG_TTL_DAYS = max(1, int(os.getenv("PROMPTS_LOG_TTL_DAYS")))
 
 
 class PromptsRepo:
